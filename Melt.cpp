@@ -520,6 +520,8 @@ void MeltNewProj::MessageReceived(BMessage* msg)
 				myalert->Go();
 			};
 		break;
+		default:
+			BWindow::MessageReceived(msg);
 	};
 	if ((msg->what&0xffffff00)=='dev\0')
 	{
