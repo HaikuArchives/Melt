@@ -65,7 +65,7 @@ class MeltNewProj : public BWindow
 		blinkinfo blink;
 
 	// UI Elements:
-		BBox* AroundBox;
+		BGroupView* AroundBox;
 		BBox* LogBox;
 			BTextView* LogView;
 				BScrollView* LogScroll;

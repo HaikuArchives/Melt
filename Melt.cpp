@@ -4,30 +4,7 @@
 		Melt - A GUI Frontend for CDR Tools
 		©2000 Lukas Hartmann / Atomatrix
 	
-	--------------------------------------------------------------------------------
-	                  Atomatrix Open Source License v1.0 [AOSL1]
-	--------------------------------------------------------------------------------
-	
-	Terms and Conditions
-	Copyright 2000, Lukas Hartmann of Atomatrix. All rights reserved.
-	
-	Permission is hereby granted, free of charge, to any person obtaining a copy of
-	this software and associated documentation files (the "Software"), to deal in
-	the Software with limited restriction, including the rights to use, copy, modify,
-	merge, publish, distribute, sublicense, and/or sell copies of the Software as
-	long as there is no profit made by doing so, and to permit persons to whom the
-	Software is furnished to do so, subject to the following conditions:
-	The above copyright notice and this permission notice applies to all licensees
-	and shall be included in all copies or substantial portions of the Software.
-	
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF TITLE, MERCHANTABILITY,
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-	LUKAS HARTMANN BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
-	AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
-	WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-	
-	--------------------------------------------------------------------------------
+	Distributed under the terms of the MIT license
 	
 	Your Contact: Lukas Hartmann, atomatrix@gmx.de
 				  http://www.atomatrix.com
@@ -36,11 +13,6 @@
 	really lazy sometimes ;)
 	
 	So Long, And Thanks For All The Fish!
-*/
-
-/*
-	fixed binary paths for Haiku. Note that THIS BREAKS BeOS R5 COMPATIBILITY
-		-- 2009-11-08 Matthias Rampke
 */
 
 #define MELT_SIG "application/x-vnd.atomatrix-melt"
@@ -52,7 +24,9 @@
 #include <signal.h>
 
 #include <AppKit.h>
+#include <GroupView.h>
 #include <InterfaceKit.h>
+#include <LayoutBuilder.h>
 #include <StorageKit.h>
 
 #include "StyleUtils.h"
@@ -122,63 +96,92 @@ void FunkyLabel::Draw(BRect dummy)
 };
 
 MeltNewProj::MeltNewProj() : BWindow(BRect(scrw/2-winw/2,scrh/2-winh/2,scrw/2+winw/2,scrh/2+winh/2),
-									 "Melt: New CD-R",B_TITLED_WINDOW,B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
+									 "Melt: New CD-R",B_TITLED_WINDOW,B_NOT_RESIZABLE|B_NOT_ZOOMABLE|B_AUTO_UPDATE_SIZE_LIMITS)
 {
-	AroundBox=new BBox(BRect(0,0,winw,winh),"BetterStyle",B_FOLLOW_NONE,B_WILL_DRAW|B_FRAME_EVENTS,B_PLAIN_BORDER);
+	SetLayout(new BGroupLayout(B_HORIZONTAL));
+	AroundBox = new BGroupView("BetterStyle", B_VERTICAL);
+	AroundBox->GroupLayout()->SetInsets(B_USE_DEFAULT_SPACING);
 
-	LogBox=new BBox(BRect(3,3,winw-3,180),"LogBox",B_FOLLOW_NONE,B_WILL_DRAW,B_FANCY_BORDER);
+	LogBox=new BBox("LogBox", B_WILL_DRAW, B_FANCY_BORDER);
 	LogBox->SetLabel("CDRecord Log:");
 
-	CDTypeBox=new BBox(BRect(3,181,winw-3,winh-73),"CDTypeBox",B_FOLLOW_NONE,B_WILL_DRAW,B_FANCY_BORDER);
+	CDTypeBox=new BBox("CDTypeBox", B_WILL_DRAW, B_FANCY_BORDER);
 	CTLabel=new FunkyLabel(BRect(0,0,35+be_bold_font->StringWidth("Mode Options:"),23),"Mode Options:","label_1");
 	rgb_color grey={216,216,216};
 	CTLabel->SetViewColor(grey);
 	CDTypeBox->SetLabel(CTLabel);
 
-	OptionBox=new BBox(BRect(3,winh-72,winw-3,winh-3),"OptionBox",B_FOLLOW_NONE,B_WILL_DRAW,B_FANCY_BORDER);
+	OptionBox=new BBox("OptionBox", B_WILL_DRAW, B_FANCY_BORDER);
 	OptionBox->SetLabel("Virtual CD Project:");
 	ProjectLabel=new FunkyLabel(BRect(0,0,35+be_bold_font->StringWidth("Virtual CD Project:"),27),"Virtual CD Project:","label_4");
 	ProjectLabel->SetViewColor(grey);
 	OptionBox->SetLabel(ProjectLabel);
 
-	LogView=new BTextView(BRect(8,18,winw-(15+B_V_SCROLL_BAR_WIDTH),winh-260),"cdrecord",BRect(5,15,winw-10,winh-160),B_FOLLOW_NONE);
+	LogView=new BTextView("cdrecord");
 	LogView->SetStylable(true);
 	LogView->MakeEditable(false);
 
-	LogScroll=new BScrollView("logscroll",LogView,B_FOLLOW_NONE,0,false,true,B_FANCY_BORDER);
+	LogScroll=new BScrollView("logscroll",LogView,0,false,true,B_FANCY_BORDER);
 
 	Recorders=new BMenu("Select");
 	Recorders->SetLabelFromMarked(true);
-	RecordPop=new BMenuField(BRect(5,winh-255,winw-10,winh-225),"recorder","Devices:",Recorders);
+	RecordPop=new BMenuField("recorder","Devices:",Recorders);
 	RecordPop->SetDivider(be_plain_font->StringWidth("Devices: "));
-	LogBox->AddChild(LogScroll);
-	LogBox->AddChild(RecordPop);
+
+	BGroupView* gv = new BGroupView(B_VERTICAL);
+	gv->GroupLayout()->SetInsets(B_USE_SMALL_SPACING);
+	LogBox->AddChild(gv);
+
+	gv->AddChild(LogScroll);
+	gv->AddChild(RecordPop);
 	
-	UseISO9660=new BRadioButton(BRect(160+34,40,180+78,60),"iso","ISO9660", new BMessage('uiso'));
+	UseISO9660=new BRadioButton("iso", "ISO9660", new BMessage('uiso'));
 	UseISO9660->SetValue(B_CONTROL_ON);
-	UseBFS=new BRadioButton(BRect(200,32,winw-10,47),"bfs","BFS (Melt 1.5)", new BMessage('ubfs'));
-	UseAudio=new BRadioButton(BRect(180+114,40,winw-10,60),"bfs","Audio", new BMessage('uaud'));
+	UseBFS=new BRadioButton("bfs", "BFS (Melt 1.5)", new BMessage('ubfs'));
+	UseAudio=new BRadioButton("audio", "Audio", new BMessage('uaud'));
 	
 	DataIcon=new FunkyLabel(BRect(160,33,160+32,33+32),"","label_2");
 	DataIcon->SetViewColor(grey);
 	AudioIcon=new FunkyLabel(BRect(180+80,30,180+112,30+32),"","label_3");
 	AudioIcon->SetViewColor(grey);
 	
-	MultiSession=new BCheckBox(BRect(5,25,159,40),"data2","Multisession", new BMessage('mses'));
-	CheckDAO=new BCheckBox(BRect(5,49,100,64),"dao","Disk At Once",new BMessage('cdao'));
+	MultiSession=new BCheckBox("data2","Multisession", new BMessage('mses'));
+	CheckDAO=new BCheckBox("dao","Disk At Once",new BMessage('cdao'));
 	CheckDAO->SetEnabled(false);
 	//Audio=new BRadioButton(BRect(5,49,100,64),"audio","Audio", new BMessage('audi'));
-	CDTypeBox->AddChild(UseISO9660);
-	//CDTypeBox->AddChild(UseBFS);
-	//CDTypeBox->AddChild(SingleSession);
-	CDTypeBox->AddChild(MultiSession);
-	CDTypeBox->AddChild(CheckDAO);
-	CDTypeBox->AddChild(UseAudio);
-	CDTypeBox->AddChild(DataIcon);
-	CDTypeBox->AddChild(AudioIcon);
+	
+	gv = new BGroupView(B_VERTICAL);
+	gv->GroupLayout()->SetInsets(B_USE_SMALL_SPACING);
 
-	CDRWBox=new BBox(BRect(5,75,winw-11,140),"CDRWBox",B_FOLLOW_NONE,B_WILL_DRAW,B_FANCY_BORDER);
+	CDTypeBox->AddChild(gv);
+
+	//gv->AddChild(UseBFS);
+	//gv->AddChild(SingleSession);
+	
+	BLayoutBuilder::Group<>(gv)
+		.AddGroup(B_HORIZONTAL)
+			.AddGroup(B_VERTICAL, 0)
+				.Add(MultiSession)
+				.Add(CheckDAO)
+				.AddGlue()
+			.End()
+			.Add(DataIcon)
+			.Add(UseISO9660)
+			.AddGlue()
+			.Add(AudioIcon)
+			.Add(UseAudio)
+			.AddGlue()
+		.End()
+	.End();
+
+	DataIcon->SetExplicitAlignment(BAlignment(B_ALIGN_RIGHT, B_ALIGN_MIDDLE));
+	UseISO9660->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT, B_ALIGN_MIDDLE));
+	AudioIcon->SetExplicitAlignment(BAlignment(B_ALIGN_RIGHT, B_ALIGN_MIDDLE));
+	UseAudio->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT, B_ALIGN_MIDDLE));
+
+	CDRWBox=new BBox("CDRWBox", B_WILL_DRAW, B_FANCY_BORDER);
 	CDRWBox->SetLabel("CDRW Tools:");
+	gv->AddChild(CDRWBox);
 	
 	Modes=new BMenu("Select");
 	Modes->SetLabelFromMarked(true);
@@ -186,39 +189,56 @@ MeltNewProj::MeltNewProj() : BWindow(BRect(scrw/2-winw/2,scrh/2-winh/2,scrw/2+wi
 	for (uint8 i=0; i<BLANK_MODE_MAX; i++)
 		Modes->AddItem(new BMenuItem(BLANK_MODE[i],new BMessage('blk\0'|i)));
 
-	ModePop=new BMenuField(BRect(5,15,230,40),"blankmode","Blank Mode:",Modes);
+	ModePop=new BMenuField("blankmode", "Blank Mode:", Modes);
 	ModePop->SetDivider(be_plain_font->StringWidth("Blank Mode: "));
-	Blank=new BButton(BRect(300,22,winw-22,47),"blank","Blank",new BMessage('blnk'));
+	Blank=new BButton("blank","Blank",new BMessage('blnk'));
 	
-	BlankStatus=new BStatusBar(BRect(5,28,30,60),"status","","");
+	BlankStatus=new BStatusBar("status","","");
 	
-	BlankTxt=new BTextView(BRect(34,44,230,60),"txt",BRect(0,0,winw-52,15),B_FOLLOW_NONE);
+	BlankTxt=new BTextView("txt");
 	BlankTxt->MakeSelectable(false);
 	BlankTxt->MakeEditable(false);
 	BlankTxt->SetStylable(true);
 	BlankTxt->SetViewColor(grey);
 	BlankTxt->Insert("Waiting.");
 	
-	Speed=new BSlider(BRect(232,15,296,40),"speed","Speed [1x]",new BMessage('sped'),0,3,B_TRIANGLE_THUMB,B_FOLLOW_NONE);
+	Speed=new BSlider("speed","Speed [1x]",new BMessage('sped'),0,3,B_HORIZONTAL, B_TRIANGLE_THUMB);
 	Speed->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	Speed->SetHashMarkCount(4);
 	Speed->SetModificationMessage(new BMessage('sped'));
 	
-	CDRWBox->AddChild(ModePop);
-	CDRWBox->AddChild(Blank);
-	CDRWBox->AddChild(BlankStatus);
-	CDRWBox->AddChild(BlankTxt);
-	CDRWBox->AddChild(Speed);
-	
-	CDTypeBox->AddChild(CDRWBox);
+	gv = new BGroupView(B_VERTICAL);
+	gv->GroupLayout()->SetInsets(B_USE_SMALL_SPACING);
+	CDRWBox->AddChild(gv);
+
+	BLayoutBuilder::Group<>(gv)
+		.AddGroup(B_HORIZONTAL)
+			.Add(ModePop)
+			.Add(Speed)
+			.Add(Blank)
+		.End()
+		.AddGroup(B_HORIZONTAL)
+			.Add(BlankStatus, 2)
+			.Add(BlankTxt)
+		.End()
+	.End();
 	
 	//SingleSession->SetValue(B_CONTROL_ON);
 	
-	Done=new BButton(BRect(5,30,97,55),"done","New",new BMessage('done'));
-	Open=new BButton(BRect(102,30,195,55),"open","Open",new BMessage('open'));
+	Done=new BButton("done","New",new BMessage('done'));
+	Open=new BButton("open","Open",new BMessage('open'));
 	//Open->SetEnabled(false);
-	OptionBox->AddChild(Done);
-	OptionBox->AddChild(Open);
+
+	gv = new BGroupView(B_HORIZONTAL);
+	gv->GroupLayout()->SetInsets(B_USE_SMALL_SPACING);
+
+	OptionBox->AddChild(gv);
+
+	BLayoutBuilder::Group<>(gv)
+		.Add(Done)
+		.Add(Open)
+		.AddGlue()
+	.End();
 
 	char bufzer[1024];
 	sprintf (bufzer,"%s/Projects/",MELT_PATH);
