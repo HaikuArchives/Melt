@@ -1565,7 +1565,7 @@ void MeltApp::InitWindow()
 	
 	bool found_token=false;
 	
-	while (!feof(f) && !ferror(f))
+	while (f != NULL && !feof(f) && !ferror(f))
 	{
 		buf[0]=0;
 		fgets(buf,1024,f);
@@ -1643,10 +1643,14 @@ void MeltApp::InitWindow()
 		if (!found_token) NewProjWin->LogView->Insert(buf);
 		NewProjWin->Unlock();
 	};
+
+	NewProjWin->Lock();
+	if (RecorderCount == 0 && !found_token) {
+		NewProjWin->LogView->Insert("cdrecord not found. Make sure the cdrtools package is installed.\n");
+	}
 	
 	sprintf (buf,"\nMelt found %d devices on scsibus.",RecorderCount);
 	if (RecorderCount==1) sprintf (buf,"\nMelt found 1 device on scsibus.");
-	NewProjWin->Lock();
 	NewProjWin->LogView->SetFontAndColor(0,0,be_plain_font,B_FONT_ALL,&red);
 	NewProjWin->LogView->Insert(buf);
 	NewProjWin->LogView->SetFontAndColor(0,0,be_plain_font,B_FONT_ALL,&black);
@@ -1654,21 +1658,24 @@ void MeltApp::InitWindow()
 	if (RecorderCount)
 	{
 		FILE* config=fopen("/boot/home/config/settings/Melt.cfg","r");
-		uint8 savedrec=0;
-		if (fread(&savedrec,1,1,config)==1)
-		{
-			if (NewProjWin->Recorders->ItemAt(savedrec))
+		if (config) {
+			uint8 savedrec=0;
+			if (fread(&savedrec,1,1,config)==1)
 			{
-				NewProjWin->Recorders->ItemAt(savedrec)->SetMarked(true);
-				strncpy(MELT_DEVICE,&Possible_Devices[savedrec*7],6);
+				if (NewProjWin->Recorders->ItemAt(savedrec))
+				{
+					NewProjWin->Recorders->ItemAt(savedrec)->SetMarked(true);
+					strncpy(MELT_DEVICE,&Possible_Devices[savedrec*7],6);
+				};
 			};
-		};
-		fclose(config);
+			fclose(config);
+		}
 	};
 	
 	NewProjWin->Unlock();
 	
-	pclose(f);
+	if (f != NULL)
+		pclose(f);
 };
 
 void MeltApp::ReadyToRun()
